@@ -1,0 +1,57 @@
+name: MTProxy with Public URL
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  mtproxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    
+    steps:
+    - name: Setup and Run
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      run: |
+        # نصب dependencies
+        pip install cryptography tornado pyngrok
+        
+        # دانلود ngrok
+        wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+        tar xzf ngrok-v3-stable-linux-amd64.tgz
+        
+        # تنظیم ngrok با توکن محرمانه
+        ./ngrok authtoken $NGROK_AUTH_TOKEN
+        
+        # اجرای موازی ngrok و mtproxy
+        ./ngrok tcp 8443 &  # 🔴 تغییر به پورت 8443
+        
+        # صبر کردن برای راه‌اندازی ngrok
+        sleep 10
+        
+        # دریافت آدرس ngrok
+        curl -s http://localhost:4040/api/tunnels > tunnels.json
+        echo "🌐 Ngrok tunnels:"
+        cat tunnels.json
+        
+        # اجرای mtproxy
+        git clone https://github.com/alexbers/mtprotoproxy.git
+        cd mtprotoproxy
+        
+        SECRET=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+        echo "🔑 SECRET: $SECRET"
+        
+        # ایجاد فایل config با پورت 8443
+        cat > config.py << 'EOF'
+PORT = 8443 #
+USERS = {"user1": "SECRET_PLACEHOLDER"}
+AD_TAG = ""
+EOF
+        
+        # جایگزینی secret
+        sed -i "s/SECRET_PLACEHOLDER/$SECRET/g" config.py
+        
+        echo "🚀 Starting MTProxy on port 8443..."
+        python3 mtprotoproxy.py
