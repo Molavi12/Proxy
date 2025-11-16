@@ -1,0 +1,17 @@
+name: Run MTProxy
+on: [workflow_dispatch]
+jobs:
+  run-proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install cryptography tornado
+          git clone https://github.com/alexbers/mtprotoproxy.git
+          cd mtprotoproxy
+          python mtprotoproxy.py
